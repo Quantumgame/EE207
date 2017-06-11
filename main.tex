@@ -1,0 +1,106 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%2345678901234567890123456789012345678901234567890123456789012345678901234567890
+%        1         2         3         4         5         6         7         8
+
+\documentclass[letterpaper, 10 pt, conference]{ieeeconf}  % Comment this line out
+                                                          % if you need a4paper
+%\documentclass[a4paper, 10pt, conference]{ieeeconf}      % Use this line for a4
+                                                          % paper
+
+\IEEEoverridecommandlockouts                              % This command is only
+                                                          % needed if you want to
+                                                          % use the \thanks command
+\overrideIEEEmargins
+% See the \addtolength command later in the file to balance the column lengths
+% on the last page of the document
+
+
+
+% The following packages can be found on http:\\www.ctan.org
+%\usepackage{graphics} % for pdf, bitmapped graphics files
+%\usepackage{epsfig} % for postscript graphics files
+%\usepackage{mathptmx} % assumes new font selection scheme installed
+%\usepackage{times} % assumes new font selection scheme installed
+%\usepackage{amsmath} % assumes amsmath package installed
+%\usepackage{amssymb}  % assumes amsmath package installed
+
+\title{\LARGE \bf
+Neuromorphic Implementation of Continuous Artificial Neural Networks through Spiking Conversion  
+}
+
+%\author{ %}
+
+\author{John Mern% <-this % stops a space
+}
+
+
+\begin{document}
+
+
+
+\maketitle
+\thispagestyle{empty}
+\pagestyle{empty}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{abstract}
+
+Deep Artificial Neural Networks' (ANNs) ability to represent a wide class of complex functions has made them the primary choice for function representation in many machine learning applications. This generality, though, often comes with high computational cost. One way to overcome this is through the use of an event-driven neuromorphic processing architecture. This presents a challenge, though, as the ANNs currently used by ML practitioners are primarily analog networks, communicating real-valued, approximately continuous signals from neuron to neuron. A neuromorphic solution, must implement an equivalent Spiking Neural Network (SNN) that communicates in discrete, 1-bit pulses. A method is therefore required to translate analog ANNs to SNNs with low-error. In addition, it is desirable that such a translation be able to function without long integration times typically required by SNNs. The work here proposes a method to achieve such a translation with limited constraints on the ANN design and with very low-loss. Additionally, it will investigate the trade-off between integration time and translation accuracy and provide guidance on parameter selection for the designer.  
+\end{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{INTRODUCTION}
+
+Deep Artificial Neural Networks' (ANNs) ability to represent a wide class of complex functions has put them at the forefront of most state-of-the-art machine learning approaches. Deep networks, though, have a major drawback in operation - they are extremely energy inefficient when run on conventional processing architectures. Event-driven neuromorphic architectures may provide a much more efficient framework for neural network computation, however, as the majority of neural networks used in machine learning are analog networks and therefore cannot be implemented on neuromorphic systems which communicate in discrete pulses. Because the majority of current methods are gradient-based, relying on analytical calculation of the network gradient, application to spiking neural networks (SNNs) is infeasible, as the discontinuous signals are non-differentiable by definition. A method is therefore required to translate analog ANNs to SNNs with low-error, thereby allowing existing training methods to be used. In addition, it is desirable that such a translation be able to function without long integration times, allowing them to be leveraged in time-sensitive embedded systems - such as robotic control. 
+
+The method proposed here is to train an ANN using an existing gradient-based approach, and then translate it into a SNN with similar architecture. In contrast with previous works (see II. RELATED WORK for additional details), this method will not require the SNN to have identical or linearly replicated structure to the source ANN, nor will it require the ANN non-linearities to emulate the neuron spike-rate behavior. Instead, the method proposed translates the ANN layer-by-layer, optimizing the function approximation of each layer based on the neuron specifications defined by the designer (e.g. neuron-type, ensemble size). In this way, hardware-driven constraints, such as layer-size, may be imposed with minimal loss in accuracy. The translation method will proceed as follows. 
+
+\begin{enumerate}
+\item Train the ANN using desired conventional method
+\item Run a test batch forward through the ANN, saving the activations at each layer.
+\item Perform singular value decomposition on the first layer weights. Truncate the SVD to the desired number of weights $S$ and recompose the weight matrix.
+\item Define the SNN ensemble with the desired parameters and size $N$. 
+\item Map the truncated weight matrix to the encoders.
+\item Using the activations saved from the corresponding ANN layer as the target values, solve for the optimal decode weights using the neuron-rate approximation. 
+\item Repeat steps 3 through 6 for the remaining layers. 
+\item Combine the resulting encoder/decoder weights for the intermediate layers into the final hidden-layer weight matrices. 
+\end{enumerate}
+
+In order to overcome hardware limitations on firing rate (typically 1000 Hz), it may be necessary to scale the ANN weights prior to the above translation in order to ensure no neuron firing rates exceed this. Additional constraints, such as integer valued weights, can also be addressed by using appropriate constrained optimization methods in step 6. 
+\section{RELATED WORK}
+The issue of ANN to SNN conversion has been previously addressed by academia and industry, though all previously proposed approaches suffer from a number of shortcomings. In general, they can be classified into two categories - \textit{Train-then-Constrain} and \textit{Constrain-then-Train}. In the former, the ANN is trained and the hardware-driven constraints are imposed in translation \cite{2016arXiv160104183D}. Loss in accuracy is compensated for by replicating the ANN multiple times in the SNN. While more general in principle, this often results in long integration times and high neural cost, with limited representational capability. In the latter approach, the ANN is constrained to emulate the desired SNN, with limitations on connectedness, and resolution imposed during training \cite{DBLP:journals/corr/HunsbergerE16} \cite{NIPS2015_5862}. The resulting ANN weights are then directly mapped to a SNN. This method may improve accuracy over train-then-constrain, but imposes limitations on ANN training and design. Both methods require the non-linearities of the ANN emulate the firing-rate behavior of the corresponding SNN neuron (typically Leaky-Integrate-and-Fire, LIF). Both rely on long integration times for spikes to accumulate in the output layer (~ 0.5 to 1.0 seconds). Techniques that may be generally leveraged, such as those required for weight scaling for firing-rate have also been proposed \cite{7280696}. 
+
+\section{PROPOSED APPROACH}
+The translation method proposed here, called layer-by-layer translation, overcomes several of the previously mentioned limitations. ANNs trained by today's methods typically greatly over-specify the target function. By decomposing the weights and truncating, we are able to capture the weights that are most important in representing the desired functional output. The mapping can then proceed with an arbitrary number of neurons per SNN layer and the neural cost can be focused on improving the accuracy of these high-value neurons. The decoder selection guarantees that, for the selected ensemble parameters, an optimal mapping can be found, as opposed to the heuristic LIF approximation currently used. Since the ensemble size can be varied arbitrarily, more time-robust input and output encodings may be used, driving down the required integration times. Additionally, it is possible for the SNN layers to approximate ANN layers using non-linear functions that are \textit{not} good approximations of firing-rate curves (i.e. $tanh$). Achieving this, though, would likely require consideration of additional translation parameters. 
+
+In the case that this method does not fully work, elements of the previous methods (in particular, the \textit{train-then-constrain}) may be leveraged to provide a solution. 
+
+\section{CONCLUSIONS}
+
+\addtolength{\textheight}{-12cm}   % This command serves to balance the column lengths
+                                  % on the last page of the document manually. It shortens
+                                  % the textheight of the last page by a suitable amount.
+                                  % This command does not take effect until the next page
+                                  % so it should come on the page before the last. Make
+                                  % sure that you do not shorten the textheight too much.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{APPENDIX}
+
+\section*{ACKNOWLEDGMENT}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliography{bib_mern.bib}
+\bibliographystyle{plain}
+
+
+\end{document}
